@@ -24,7 +24,7 @@ class DMD_jov(DMDBase):
     :param bool opt: flag to compute optimized DMD. Default is False.
     """
     @staticmethod
-    def _compute_amplitudes(lambda_, S_r, V_r,W_r,modes,snapshots,eigs,opt):
+    def _compute_amplitudes(modes,snapshots,eigs,opt,s,V,W):
         """
         Compute the amplitude coefficients. If `opt` is False the amplitudes
         are computed by minimizing the error between the modes and the first
@@ -42,35 +42,35 @@ class DMD_jov(DMDBase):
         :return: the amplitudes array
         :rtype: numpy.ndarray
         """
-        if opt =='jov':
+        if opt =='Jov':
             
-            Vand = np.zeros((S_r.shape[0], V_r.shape[0])); # Vandermonde matrix
-            for k in range(V_r.shape[0]):
-                Vand[:, k] = lambda_**(k)
+            Vand = np.zeros((s.shape[0], V.shape[0])); # Vandermonde matrix
+            for k in range(V.shape[0]):
+                Vand[:, k] = eigs**(k)
              
     
         # the next 5 lines follow Jovanovic et al, 2014 code:
-            G = np.diag(S_r).dot( V_r.conj().T)
-            P = (W_r.conj().T.dot(W_r))*(Vand.dot(Vand.conj().T)).conj()
-            q = (np.diag(Vand.dot(G.conj().T).dot(W_r))).conj()
+            G = np.diag(s).dot( V.conj().T)
+            P = (W.conj().T.dot(W))*(Vand.dot(Vand.conj().T)).conj()
+            q = (np.diag(Vand.dot(G.conj().T).dot(W))).conj()
             Pl = sp.linalg.cholesky(P,lower=True)
             b = np.linalg.inv(Pl.conj().T).dot((np.linalg.inv(Pl)).dot(q)) # Optimal vector of amplitudes b
-        elif opt == 'True':
+        elif opt == True:
             L = np.concatenate(
                 [
                     modes.dot(np.diag(eigs**i))
                     for i in range(snapshots.shape[1])
                 ],
                 axis=0)
-            b = np.reshape(snapshots, (-1, ), order='F')
+            a = np.reshape(snapshots, (-1, ), order='F')
 
-            a = np.linalg.lstsq(L, b)[0]
-        elif opt == 'False':
-            a = np.linalg.lstsq(modes, snapshots.T[0])[0]
+            b = np.linalg.lstsq(L, a)[0]
+        elif opt == False:
+            b = np.linalg.lstsq(modes, snapshots.T[0])[0]
         else:
             print('opt must be True, False, or jov')
             return
-        return a
+        return b
 
     def fit(self, X):
         """
@@ -94,8 +94,10 @@ class DMD_jov(DMDBase):
         self._eigs, self._modes = self._eig_from_lowrank_op(
             self._Atilde, Y, U, s, V, self.exact)
 
+        _, lowrank_eigenvectors = np.linalg.eig(self._Atilde)
+        
         self._b = self._compute_amplitudes(self._modes, self._snapshots,
-                                           self._eigs, self.opt)
+                                           self._eigs, self.opt,s,V,lowrank_eigenvectors)
 
         # Default timesteps
         self.original_time = {'t0': 0, 'tend': n_samples - 1, 'dt': 1}

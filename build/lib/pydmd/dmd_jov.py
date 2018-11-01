@@ -24,6 +24,7 @@ class DMD_jov(DMDBase):
     :param bool opt: flag to compute optimized DMD. Default is False.
     """
     @staticmethod
+    def _compute_amplitudes(modes,snapshots,eigs,opt,s,V,W):
         """
         Compute the amplitude coefficients. If `opt` is False the amplitudes
         are computed by minimizing the error between the modes and the first
